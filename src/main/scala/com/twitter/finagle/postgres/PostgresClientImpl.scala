@@ -99,17 +99,20 @@ class PostgresClientImpl(
     id                  =  Random.alphanumeric.take(28).mkString
     transactionalClient = new PostgresClientImpl(constFactory, id, Some(types), receiveFunctions, binaryResults, binaryParams)
     _                   <- transactionalClient.query("BEGIN")
-    result              <- fn(transactionalClient).rescue {
-      case err => for {
-        _ <- transactionalClient.query("ROLLBACK")
-        _ <- constFactory.close()
-        _ <- service.close()
-        _ <- Future.exception(err)
-      } yield null.asInstanceOf[T]
-    }
-    _                   <- transactionalClient.query("COMMIT")
-    _                   <- constFactory.close()
-    _                   <- service.close()
+    result              <- fn(transactionalClient)
+      .transform {
+        case Return(res) =>
+          transactionalClient.query("COMMIT")
+            .handle { case err => logger.error("Commit failed", err) }
+            .map(_ => res)
+        case Throw(err) =>
+          transactionalClient.query("ROLLBACK")
+            .handle { case err => logger.error("Rollback failed", err) }
+            .flatMap(_ => Future.exception(err))
+      }
+      .transform { outcome =>
+        constFactory.close().transform(_ => service.close()).transform(_ => Future.const(outcome))
+      }
   } yield result
 
   /*
