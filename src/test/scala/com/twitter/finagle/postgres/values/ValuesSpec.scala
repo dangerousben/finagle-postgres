@@ -131,7 +131,7 @@ class ValuesSpec extends Spec with GeneratorDrivenPropertyChecks {
         "timestamptz_send",
         "timestamptz",
         ts => ts.toOffsetDateTime.toString,
-        (a, b) => a.getLong(ChronoField.MICRO_OF_DAY) == b.getLong(ChronoField.MICRO_OF_DAY),
+        _.isEqual(_),
         nonDefault = true
       )
       "parse timestamps as instants" in test(ValueDecoder.instant, ValueEncoder.instant)(

@@ -107,24 +107,12 @@ object ValueDecoder {
   )
 
   implicit val instant: ValueDecoder[Instant] = instance(
-    s => Try {
-      val (str, zoneOffs) = DateTimeUtils.ZONE_REGEX.findFirstMatchIn(s) match {
-        case Some(m) => m.group(1) -> (m.group(2) match {
-          case "-" => -1 * m.group(3).toInt
-          case "+" => m.group(3).toInt
-        })
-        case None => throw new DateTimeException("TimestampTZ string could not be parsed")
-      }
-      val zone = ZoneId.ofOffset("", ZoneOffset.ofHours(zoneOffs))
-      LocalDateTime.ofInstant(
-        java.sql.Timestamp.valueOf(str).toInstant,
-        zone).atZone(zone).toInstant
-    },
+    s => Try(DateTimeUtils.parseDateTimeTz(s).toInstant),
     (b, c) => Try(DateTimeUtils.readTimestamp(b))
   )
 
-  implicit val zonedDateTime: ValueDecoder[ZonedDateTime] = instant.map(_.atZone(ZoneId.systemDefault()))
-  implicit val offsetDateTime: ValueDecoder[OffsetDateTime] = zonedDateTime.map(_.toOffsetDateTime)
+  implicit val zonedDateTime: ValueDecoder[ZonedDateTime] = instant.map(_.atZone(ZoneOffset.UTC))
+  implicit val offsetDateTime: ValueDecoder[OffsetDateTime] = instant.map(_.atOffset(ZoneOffset.UTC))
 
   implicit val interval: ValueDecoder[Interval] = instance(
     s => Try(com.twitter.finagle.postgres.values.Interval.parse(s)),

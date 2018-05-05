@@ -95,7 +95,7 @@ class CustomTypesSpec extends Spec with GeneratorDrivenPropertyChecks {
       )
       "parse timestamps with time zone" in test(ValueDecoder.zonedDateTime)(
         "timestamptz",
-        (a, b) => a.getLong(ChronoField.MICRO_OF_DAY) == b.getLong(ChronoField.MICRO_OF_DAY)
+        _.isEqual(_)
       )
       "parse times" in test(ValueDecoder.localTime)("time")
       "parse times with timezone" in test(ValueDecoder.offsetTime)("timetz")

@@ -9,20 +9,39 @@ import org.jboss.netty.buffer.{ChannelBuffer, ChannelBuffers}
 
 private object DateTimeUtils {
   val POSTGRES_EPOCH_MICROS = 946684800000000L
-  val ZONE_REGEX = "(.*)(-|\\+)([0-9]{2})".r
 
-  private val timeTzParser = new DateTimeFormatterBuilder()
+  private val timeTzFormatter = new DateTimeFormatterBuilder()
     .parseCaseInsensitive()
     .append(DateTimeFormatter.ISO_LOCAL_TIME)
     .optionalStart()
     .appendOffset("+HH:MM:ss", "Z")
     .optionalEnd()
+    .toFormatter
+
+  private val timeTzParser = new DateTimeFormatterBuilder()
+    .append(timeTzFormatter)
     .optionalStart()
     .appendOffset("+HH:mm", "Z")
     .optionalEnd()
     .optionalStart()
     .appendOffset("+HH", "Z")
     .optionalEnd()
+    .toFormatter
+
+  private val dateTimeWithSeparatorFormatter = new DateTimeFormatterBuilder()
+    .parseCaseInsensitive()
+    .append(DateTimeFormatter.ISO_LOCAL_DATE)
+    .appendLiteral(' ')
+    .toFormatter
+
+  private val dateTimeTzFormatter = new DateTimeFormatterBuilder()
+    .append(dateTimeWithSeparatorFormatter)
+    .append(timeTzFormatter)
+    .toFormatter
+
+  private val dateTimeTzParser = new DateTimeFormatterBuilder()
+    .append(dateTimeWithSeparatorFormatter)
+    .append(timeTzParser)
     .toFormatter
 
   def readTimestamp(buf: ChannelBuffer) = {
@@ -45,7 +64,9 @@ private object DateTimeUtils {
     Interval(Duration.ofNanos(micros * 1000), Period.ofMonths(months).plusDays(days))
   }
 
-  def parseTimeTz(str: String) = OffsetTime.parse(str, timeTzParser)
+  def parseTimeTz(str: String): OffsetTime = OffsetTime.parse(str, timeTzParser)
+
+  def parseDateTimeTz(str: String): ZonedDateTime = ZonedDateTime.parse(str, dateTimeTzParser)
 
   def writeInstant(instant: Instant) = {
     val seconds = instant.getEpochSecond
@@ -73,6 +94,8 @@ private object DateTimeUtils {
     buf.writeInt(interval.dateDifference.getYears * 12 + interval.dateDifference.getMonths)
     buf
   }
+
+  def printDateTimeTz(offsetDateTime: OffsetDateTime): String = offsetDateTime.format(dateTimeTzFormatter)
 }
 
 // Java time doesn't have the same notion of Interval that Postgres has

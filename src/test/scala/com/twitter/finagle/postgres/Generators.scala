@@ -1,9 +1,10 @@
 package com.twitter.finagle.postgres
 
 import java.nio.charset.StandardCharsets
-import java.time.{ZonedDateTime, _}
+import java.time.{ZonedDateTime, ZoneId, _}
 import java.time.temporal.JulianFields
 import java.util.UUID
+import scala.collection.JavaConverters._
 
 import org.scalacheck.{Arbitrary, Gen}
 import Arbitrary.arbitrary
@@ -26,17 +27,20 @@ object Generators {
     usec <- Gen.choose(0L, 24L * 60 * 60 * 1000000 - 1)
   } yield LocalTime.ofNanoOfDay(usec * 1000))
 
-  implicit val arbInstant = Arbitrary[Instant](for {
-    milli <- Gen.posNum[Long]
-  } yield Instant.ofEpochMilli(milli))
-
   implicit val arbTimestamp = Arbitrary[LocalDateTime](for {
-    milli <- Gen.posNum[Long]
-  } yield LocalDateTime.ofInstant(Instant.ofEpochMilli(milli), ZoneId.systemDefault()))
+    date <- arbitrary[LocalDate]
+    time <- arbitrary[LocalTime]
+  } yield date.atTime(time))
+
+  lazy val availableZones = ZoneId.getAvailableZoneIds.asScala.toSeq.map(ZoneId.of)
+  implicit val arbZoneId = Arbitrary[ZoneId](Gen.oneOf(availableZones))
 
   implicit val arbTimestampTz = Arbitrary[ZonedDateTime](for {
-    milli <- Gen.posNum[Long]
-  } yield ZonedDateTime.ofInstant(Instant.ofEpochMilli(milli), ZoneId.systemDefault()))
+    dateTime <- arbitrary[LocalDateTime]
+    zone <- arbitrary[ZoneId]
+  } yield dateTime.atZone(zone))
+
+  implicit val arbInstant = Arbitrary[Instant](arbitrary[ZonedDateTime].map(_.toInstant))
 
   implicit val arbZoneOffset = Arbitrary(Gen.choose(-12, 12).map(ZoneOffset.ofHours))
 

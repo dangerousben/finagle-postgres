@@ -124,16 +124,13 @@ object ValueEncoder extends LowPriorityEncoder {
     (ts, c) => Option(ts).map(ts => DateTimeUtils.writeTimestamp(ts))
   )
   implicit val timestampTz: ValueEncoder[ZonedDateTime] = instance(
-    "timestamptz", { t =>
-      val offs = t.toOffsetDateTime
-      val hours = (offs.getOffset.getTotalSeconds / 3600).formatted("%+03d")
-      Timestamp.from(t.toInstant).toString + hours
-    },
+    "timestamptz",
+    t => DateTimeUtils.printDateTimeTz(t.toOffsetDateTime),
     (ts, c) => Option(ts).map(ts => DateTimeUtils.writeTimestampTz(ts))
   )
   implicit val instant: ValueEncoder[Instant] = instance(
     "timestamptz",
-    i => Timestamp.from(i).toString + "+00",
+    i => DateTimeUtils.printDateTimeTz(i.atOffset(ZoneOffset.UTC)),
     (ts, c) => Option(ts).map(ts => DateTimeUtils.writeInstant(ts))
   )
   implicit val time: ValueEncoder[LocalTime] = instance(
