@@ -61,6 +61,8 @@ case object CreateTrigger extends CommandCompleteStatus
 
 case object DropTable extends CommandCompleteStatus
 
+case object DropTrigger extends CommandCompleteStatus
+
 case object DiscardAll extends CommandCompleteStatus
 
 case object Do extends CommandCompleteStatus

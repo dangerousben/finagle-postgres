@@ -229,6 +229,7 @@ class BackendMessageParser {
       case "DO" => Do
       case "DISCARD ALL" => DiscardAll
       case "DROP TABLE" => DropTable
+      case "DROP TRIGGER" => DropTrigger
       case _ =>
         val parts = tag.split(" ")
 
