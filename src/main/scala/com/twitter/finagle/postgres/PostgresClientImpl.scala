@@ -106,7 +106,7 @@ class PostgresClientImpl(
     _                        <- transactionalClient.query("BEGIN").onFailure(_ => closeTransaction())
     result                   <- fn(transactionalClient).rescue {
       case err => for {
-        _ <- completeTransactionQuery("ROLLBACK")
+        _ <- completeTransactionQuery("ROLLBACK")//.handle(Monitor.catcher)
         _ <- Future.exception(err)
       } yield null.asInstanceOf[T]
     }

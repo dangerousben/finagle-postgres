@@ -2,7 +2,7 @@ package com.twitter.finagle.postgres.integration
 
 import com.twitter.finagle.Postgres
 import com.twitter.finagle.postgres.Spec
-import com.twitter.util.{Await, Future}
+import com.twitter.util.{Await, Future, Throw}
 
 class TransactionSpec extends Spec {
   for {
@@ -62,6 +62,18 @@ class TransactionSpec extends Spec {
         assert(inTable == List(1, 2))
       }
 
+      "return the original exception and handle the additional exception with Monitor if rollback fails" in {
+        val mainException = new Exception("main")
+        val result = client.inTransaction { c =>
+          for {
+            _ <- c.prepareAndExecute("rollback")
+            _ <- c.prepareAndExecute("rollback")
+            _ <- Future.exception(mainException)
+          } yield ()
+        }.liftToTry
+
+        Await.result(result) mustBe Throw(mainException)
+      }
     }
   }
 }
