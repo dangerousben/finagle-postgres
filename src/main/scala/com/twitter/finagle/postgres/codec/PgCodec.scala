@@ -21,7 +21,6 @@ import io.netty.handler.ssl.{SslContext, SslHandler}
 import io.netty.util.concurrent._
 import scala.collection.mutable
 
-import com.sun.corba.se.impl.protocol.RequestCanceledException
 import com.twitter.finagle.transport.Transport
 
 /*

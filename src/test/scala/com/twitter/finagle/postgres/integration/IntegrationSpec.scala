@@ -3,10 +3,13 @@ package com.twitter.finagle.postgres.integration
 import java.sql.Timestamp
 import java.time.Instant
 
+import com.twitter.conversions.DurationOps._
 import com.twitter.finagle.postgres._
 import com.twitter.finagle.postgres.codec.ServerError
 import com.twitter.finagle.Postgres
 import com.twitter.finagle.Status
+import com.twitter.finagle.stats.StatsRegistry
+import com.twitter.finagle.util.LoadService
 import com.twitter.util.Try
 import com.twitter.util.Await
 import com.twitter.util.Duration
@@ -28,6 +31,7 @@ object IntegrationSpec {
  * The tests can be run with SSL by also setting the USE_PG_SSL variable to "1", and hostname verification can be added
  * by setting PG_SSL_HOST.
  *
+ * You can also enable the stress test by setting PG_STRESS_TEST.
  */
 class IntegrationSpec extends Spec {
 
@@ -442,5 +446,42 @@ class IntegrationSpec extends Spec {
       }
     }
 
+    if (sys.env.getOrElse("PG_STRESS_TEST", "").nonEmpty) {
+      it should {
+        "handle heavy concurrency" in {
+          val registries: Seq[StatsRegistry] = LoadService[StatsRegistry]()
+
+          def printStats() = {
+            println("\n\nprinting stats: ")
+            registries.foreach(_().foreach { case (k, v) =>
+            println(s"$k: $v")
+          })}
+
+          val client = Postgres.Client()
+            .withLabel("postgres-test")
+            .withCredentials(user, password)
+            .database(dbname)
+            .withSessionPool.maxSize(4)
+            .withSessionPool.minSize(4)
+            .withSessionPool.maxWaiters(1024)
+            .conditionally(useSsl, c => sslHost.fold(c.withTransport.tls)(c.withTransport.tls(_)))
+            .newRichClient(hostPort)
+
+          implicit val timer = com.twitter.finagle.util.DefaultTimer
+
+          Await.ready {
+            printStats()
+            Future.traverseSequentially((0 until 16)) { _ =>
+              for {
+                _ <- Future.join((0 until 32768).map(_ => client.select("select 1 as n")(_.get[Int]("n"))))
+                _ = printStats()
+                _ <- Future.sleep(5.seconds)
+                _ = printStats()
+              } yield ()
+            }
+          }
+        }
+      }
+    }
   }
 }
